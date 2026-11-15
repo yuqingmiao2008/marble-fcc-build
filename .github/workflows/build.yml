@@ -3,37 +3,5 @@ on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
-      - name: deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev zip clang lld llvm
-      - name: clone kernel
-        run: |
-          git clone --depth 1 --branch 5.10.271-Melt-Guxin12-20261004-0118 \
-            https://github.com/Guxin12/android_kernel_xiaomi_marble kernel
-      - name: apply patch
-        run: |
-          cd kernel
-          git apply ../fcc-override.patch
-          git diff --stat
-      - name: configure
-        run: |
-          cd kernel
-          cp ../defconfig arch/arm64/configs/marble_fcc_defconfig
-          make ARCH=arm64 LLVM=1 O=out marble_fcc_defconfig
-          grep -E "CONFIG_LOCALVERSION|CONFIG_MODVERSIONS|CONFIG_QTI_BATTERY_CHARGER" out/.config || true
-      - name: build
-        run: |
-          cd kernel
-          make -j$(nproc) ARCH=arm64 LLVM=1 O=out Image modules
-      - name: upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-out
-          path: |
-            kernel/out/drivers/power/supply/qti_battery_charger_main.ko
-            kernel/out/arch/arm64/boot/Image
-          if-no-files-found: warn
+      - run: echo hello
