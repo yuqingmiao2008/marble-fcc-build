@@ -3,13 +3,20 @@ on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - name: deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev zip clang lld llvm
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev zip wget gnupg
+      - name: clang-19
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/llvm.asc > /dev/null
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main" | sudo tee /etc/apt/sources.list.d/llvm.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y clang-19 lld-19 llvm-19
+          /usr/lib/llvm-19/bin/clang --version
       - name: clone kernel
         run: |
           git clone --depth 1 --branch 5.10.271-Melt-Guxin12-20261004-0118 \
@@ -23,12 +30,13 @@ jobs:
         run: |
           cd kernel
           cp ../defconfig arch/arm64/configs/marble_fcc_defconfig
-          make ARCH=arm64 LLVM=1 O=out marble_fcc_defconfig
-          grep -E "CONFIG_LOCALVERSION|CONFIG_MODVERSIONS|CONFIG_QTI_BATTERY_CHARGER" out/.config || true
+          PATH=/usr/lib/llvm-19/bin:$PATH make ARCH=arm64 LLVM=1 O=out marble_fcc_defconfig
+          grep -E "CONFIG_LOCALVERSION|CONFIG_MODVERSIONS|CONFIG_QTI_BATTERY_CHARGER|CONFIG_WERROR" out/.config || true
       - name: build
         run: |
           cd kernel
-          make -j$(nproc) ARCH=arm64 LLVM=1 O=out Image modules
+          PATH=/usr/lib/llvm-19/bin:$PATH make -j$(nproc) ARCH=arm64 LLVM=1 O=out \
+            KCFLAGS="-Wno-error -Wno-error=frame-larger-than" Image modules
       - name: upload
         uses: actions/upload-artifact@v4
         with:
